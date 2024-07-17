@@ -65,6 +65,8 @@ if __name__ == "__main__":
     ModelServer().start([model])
 ```
 
+Save the above code snippet to a file called `model.py`.
+
 ### Build Custom Serving Image with BuildPacks
 [Buildpacks](https://buildpacks.io/) allows you to transform your inference code into images that can be deployed on KServe without
 needing to define the `Dockerfile`. Buildpacks automatically determines the python application and then install the dependencies from the
@@ -72,9 +74,31 @@ needing to define the `Dockerfile`. Buildpacks automatically determines the pyth
 image manually with `pack`, you can also choose to use [kpack](https://github.com/pivotal/kpack)
 to run the image build on the cloud and continuously build/deploy new versions from your source git repository.
 
+For this particular example, you can generate a `requirements.txt` file by 
+running the following command from inside [this](https://github.com/kserve/kserve/tree/master/python/custom_model) directory.
+
+```sh
+# you might have to pip install poetry
+poetry export --without-hashes | grep -E -v "^-e" > requirements.txt
+echo "kserve" >> requirements.txt
+```
+Also make sure you have a runtime.txt and Procfile in the same directory as `model.py` and `requirements.txt`. Here are representative examples of each:
+
+runtime.txt
+```
+python-3.11.9
+```
+
+Procfile
+```
+web: python -m model
+```
+
+
+
 You can use pack cli to build and push the custom model server image
 ```bash
-pack build --builder=heroku/buildpacks:20 ${DOCKER_USER}/custom-model:v1
+pack build --builder=heroku/builder:24 ${DOCKER_USER}/custom-model:v1
 docker push ${DOCKER_USER}/custom-model:v1
 ```
 
@@ -83,7 +107,7 @@ Note: If your buildpack command fails, make sure you have a `runtimes.txt` file 
 ### Deploy Locally and Test
 Launch the docker image built from last step with `buildpack`.
 ```bash
-docker run -ePORT=8080 -p8080:8080 ${DOCKER_USER}/custom-model:v1 --model_name="custom-model"
+docker run -ePORT=8080 -p8080:8080 ${DOCKER_USER}/custom-model:v1 "python -m model.py --model_name custom-model"
 ```
 
 Send a test inference request locally with [input.json](./input.json)
